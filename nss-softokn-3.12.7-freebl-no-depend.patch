@@ -1,0 +1,33 @@
+diff -up ./mozilla/security/nss/lib/freebl/config.mk.freeblnodepend ./mozilla/security/nss/lib/freebl/config.mk
+--- ./mozilla/security/nss/lib/freebl/config.mk.freeblnodepend	2010-08-26 19:23:12.341370243 -0700
++++ ./mozilla/security/nss/lib/freebl/config.mk	2010-08-26 19:24:36.743245302 -0700
+@@ -66,14 +66,6 @@ ALL_TRASH :=    $(TARGETS) $(OBJS) $(OBJ
+ 
+ else
+ 
+-ifeq ($(FREEBL_NO_DEPEND),1)
+-LOWHASH_SRCS = stubs.c nsslowhash.c
+-LOWHASH_EXPORTS = nsslowhash.h
+-MAPFILE_SOURCE = freebl_hash.def
+-else
+-MAPFILE_SOURCE = freebl.def
+-endif
+-
+ # This is a recursive child make. We build the shared lib.
+ 
+ TARGETS      = $(SHARED_LIBRARY)
+diff -up ./mozilla/security/nss/lib/freebl/Makefile.freeblnodepend ./mozilla/security/nss/lib/freebl/Makefile
+--- ./mozilla/security/nss/lib/freebl/Makefile.freeblnodepend	2010-08-26 19:20:08.659245572 -0700
++++ ./mozilla/security/nss/lib/freebl/Makefile	2010-08-26 19:22:04.118245165 -0700
+@@ -76,6 +76,11 @@ endif
+ 
+ ifeq ($(FREEBL_NO_DEPEND),1)
+ 	DEFINES += -DFREEBL_NO_DEPEND
++	LOWHASH_SRCS = stubs.c nsslowhash.c
++	LOWHASH_EXPORTS = nsslowhash.h
++	MAPFILE_SOURCE = freebl_hash.def
++else
++	MAPFILE_SOURCE = freebl.def
+ endif
+ ifdef FREEBL_USE_PRELINK
+ 	DEFINES += -DFREEBL_USE_PRELINK

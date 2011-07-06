@@ -1,0 +1,52 @@
+diff -up ./mozilla/security/nss/lib/Makefile.nolocalsql ./mozilla/security/nss/lib/Makefile
+--- ./mozilla/security/nss/lib/Makefile.nolocalsql	2010-06-07 15:47:39.536059350 -0700
++++ ./mozilla/security/nss/lib/Makefile	2010-06-07 15:48:59.180059336 -0700
+@@ -62,11 +62,11 @@ ifndef USE_SYSTEM_ZLIB
+ ZLIB_SRCDIR = zlib  # Add the zlib directory to DIRS.
+ endif
+ 
+-ifndef MOZILLA_CLIENT
+-ifndef NSS_USE_SYSTEM_SQLITE
+-SQLITE_SRCDIR = sqlite  # Add the sqlite directory to DIRS.
+-endif
+-endif
++#ifndef MOZILLA_CLIENT
++#ifndef NSS_USE_SYSTEM_SQLITE
++#SQLITE_SRCDIR = sqlite  # Add the sqlite directory to DIRS.
++#endif
++#endif
+ 
+ ifndef MOZILLA_CLIENT
+ ifeq ($(OS_ARCH),Linux)
+diff -up ./mozilla/security/nss/lib/softoken/legacydb/manifest.mn.nolocalsql ./mozilla/security/nss/lib/softoken/legacydb/manifest.mn
+--- ./mozilla/security/nss/lib/softoken/legacydb/manifest.mn.nolocalsql	2010-06-07 15:50:02.079059333 -0700
++++ ./mozilla/security/nss/lib/softoken/legacydb/manifest.mn	2010-06-07 15:50:58.308059358 -0700
+@@ -46,9 +46,9 @@ MAPFILE = $(OBJDIR)/nssdbm.def
+ 
+ DEFINES += -DSHLIB_SUFFIX=\"$(DLL_SUFFIX)\" -DSHLIB_PREFIX=\"$(DLL_PREFIX)\" -DSOFTOKEN_LIB_NAME=\"$(notdir $(SHARED_LIBRARY))\"
+ 
+-ifdef MOZILLA_CLIENT
+-INCLUDES += -I$(DIST)/include/sqlite3
+-endif
++#ifdef MOZILLA_CLIENT
++#INCLUDES += -I$(DIST)/include/sqlite3
++#endif
+ 
+ CSRCS = \
+ 	dbmshim.c \
+diff -up ./mozilla/security/nss/lib/softoken/manifest.mn.nolocalsql ./mozilla/security/nss/lib/softoken/manifest.mn
+--- ./mozilla/security/nss/lib/softoken/manifest.mn.nolocalsql	2010-06-07 15:51:37.872059382 -0700
++++ ./mozilla/security/nss/lib/softoken/manifest.mn	2010-06-07 15:52:18.404059529 -0700
+@@ -47,9 +47,9 @@ MAPFILE = $(OBJDIR)/softokn.def
+ 
+ DEFINES += -DSHLIB_SUFFIX=\"$(DLL_SUFFIX)\" -DSHLIB_PREFIX=\"$(DLL_PREFIX)\" -DSOFTOKEN_LIB_NAME=\"$(notdir $(SHARED_LIBRARY))\" -DSHLIB_VERSION=\"$(LIBRARY_VERSION)\"
+ 
+-ifdef MOZILLA_CLIENT
+-INCLUDES += -I$(DIST)/include/sqlite3
+-endif
++#ifdef MOZILLA_CLIENT
++#INCLUDES += -I$(DIST)/include/sqlite3
++#endif
+ 
+ EXPORTS = \
+ 	secmodt.h \
