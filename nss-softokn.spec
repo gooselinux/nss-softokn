@@ -1,6 +1,6 @@
-%global nspr_version 4.8.6
+%global nspr_version 4.8.7
 %global nss_name nss
-%global nss_util_version 3.12.7
+%global nss_util_version 3.12.9
 %global unsupported_tools_directory %{_libdir}/nss/unsupported-tools
 %global saved_files_dir %{_libdir}/nss/saved
 
@@ -16,8 +16,8 @@
 
 Summary:          Network Security Services Softoken Module
 Name:             nss-softokn
-Version:          3.12.7
-Release:          1.1%{?dist}
+Version:          3.12.9
+Release:          11%{?dist}
 License:          MPLv1.1 or GPLv2+ or LGPLv2+
 URL:              http://www.mozilla.org/projects/security/pki/nss/
 Group:            System Environment/Libraries
@@ -26,7 +26,7 @@ Requires:         nss-util >= %{nss_util_version}
 Requires:         nss-softokn-freebl%{_isa} >= %{version}
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires:    nspr-devel >= %{nspr_version}
-BuildRequires:    nss-util-devel >= %{version}
+BuildRequires:    nss-util-devel >= %{nss_util_version}
 BuildRequires:    sqlite-devel
 BuildRequires:    zlib-devel
 BuildRequires:    pkgconfig
@@ -35,25 +35,31 @@ BuildRequires:    psmisc
 BuildRequires:    perl
 
 Source0:          %{name}-%{version}-stripped.tar.bz2
-# The nss-softokn tar ball is a subset of nss-%{version}-stripped.tar.bz2, 
+# The nss-softokn tar ball is a subset of nss-{version}-stripped.tar.bz2, 
 # Therefore we use the nss-split-softokn.sh script to keep only what we need.
-# Download the nss tarball via CVS from the nss propect and follow these
-# steps to make the r tarball for nss-util out of the for nss:
+# Download the nss tarball via CVS from the nss project and follow these
+# steps to make the tarball for nss-softokn out of the one for nss:
 # cvs co nss
-# cvs nss-softokn (as soon as it is in cvs - for now extract the srpm)
-# cd nss-softokn/devel
+# cvs nss-softokn
 # cp ../../nss/devel/${version}-stripped.tar.bz2  .
-# (use 3.12.3.99.3 for version above until 3.12.4 comes out)
 # sh ./nss-split-softokn.sh ${version}
-# A %{name}-%{version}--stripped.tar.bz2 should appear
+# A file named {name}-{version}-stripped.tar.bz2 should appear
 Source1:          nss-split-softokn.sh
 Source2:          nss-softokn.pc.in
 Source3:          nss-softokn-config.in
 
-Patch1:           nss-nolocalsql.patch
+Patch1:           add-relro-linker-option.patch
 Patch2:           nss-softokn-3.12.4-prelink.patch
 Patch3:           nss-softokn-3.12.4-fips-fix.patch
-Patch4:           nss-softokn-3.12.7-freebl-no-depend.patch
+Patch4:           nss-softokn-710298.patch
+# Add drbg tests for FIPS validation, patch from upstream
+# see: https://bugzilla.mozilla.org/show_bug.cgi?id=695571
+# Remove this patch when we rebase to nss 3.13.2
+Patch5:           drbg.patch
+# Backported from upstream nss 3.13
+# See: https://bugzilla.mozilla.org/show_bug.cgi?id=641052
+# Remove this patch when we rebase to nss 3.13.2
+Patch6:           nss-softokn-748524.patch
 
 %description
 Network Security Services Softoken Cryptographic Module
@@ -65,17 +71,31 @@ Conflicts:        nss < 3.12.2.99.3-5
 Conflicts:        prelink < 0.4.3
 
 %description freebl
-Network Security Services Softoken Cryptographic Module Freelb Library.
+NSS Softoken Cryptographic Module Freelb Library
 
 Install the nss-softokn-freebl package if you need the freebl 
 library.
 
+%package freebl-devel
+Summary:          Header and Library files for doing development with the Freebl library for NSS
+Group:            System Environment/Base
+Provides:         nss-softokn-freebl-static = %{version}-%{release}
+Requires:         nss-softokn-freebl%{?_isa} = %{version}-%{release}
+
+%description freebl-devel
+NSS Softoken Cryptographic Module Freelb Library Development Tools
+This package supports special needs of some PKCS #11 module developers and
+is otherwise considered private to NSS. As such, the programming interfaces
+may change and the usual NSS binary compatibility commitments do not apply.
+Developers should rely only on the officially supported NSS public API.
+
 %package devel
 Summary:          Development libraries for Network Security Services
 Group:            Development/Libraries
-Requires:         nss-softokn = %{version}-%{release}
+Requires:         nss-softokn%{?_isa} = %{version}-%{release}
+Requires:         nss-softokn-freebl-devel%{?_isa} = %{version}-%{release}
 Requires:         nspr-devel >= %{nspr_version}
-Requires:         nss-util-devel >= %{version}
+Requires:         nss-util-devel >= %{nss_util_version}
 Requires:         pkgconfig
 BuildRequires:    nspr-devel >= %{nspr_version}
 BuildRequires:    nss-util-devel >= %{nss_util_version}
@@ -87,10 +107,12 @@ Header and Library files for doing development with Network Security Services.
 %prep
 %setup -q
 
-%patch1 -p0
+%patch1 -p0 -b .relro
 %patch2 -p0 -b .prelink
-%patch3 -p0 -b .590362
-%patch4 -p0 -b .freeblnodend
+%patch3 -p0 -b .fipsfix
+%patch4 -p0 -b .710298
+%patch5 -p0 -b .747053
+%patch6 -p0 -b .748524
 
 %build
 
@@ -103,6 +125,10 @@ export FREEBL_USE_PRELINK
 # Enable compiler optimizations and disable debugging code
 BUILD_OPT=1
 export BUILD_OPT
+
+# Uncomment to disable optimizations
+#RPM_OPT_FLAGS=`echo $RPM_OPT_FLAGS | sed -e 's/-O2/-O0/g'`
+#export RPM_OPT_FLAGS
 
 # Generate symbolic info for debuggers
 XCFLAGS=$RPM_OPT_FLAGS
@@ -126,6 +152,8 @@ NSS_LIB_DIR=`/usr/bin/pkg-config --libs-only-L nss-util | sed 's/-L//'`
 export NSS_INCLUDE_DIR
 export NSS_LIB_DIR
 
+NSS_USE_SYSTEM_SQLITE=1
+export NSS_USE_SYSTEM_SQLITE
 
 %ifarch x86_64 ppc64 ia64 s390x sparc64
 USE_64=1
@@ -227,6 +255,18 @@ do
   %{__install} -p -m 644 $file $RPM_BUILD_ROOT/%{_includedir}/nss3
 done
 
+# Copy some freebl include files we also want
+for file in blapi.h alghmac.h
+do
+  %{__install} -p -m 644 mozilla/dist/private/nss/$file $RPM_BUILD_ROOT/%{_includedir}/nss3
+done
+
+# Copy the static freebl library
+for file in libfreebl.a
+do
+%{__install} -p -m 644 mozilla/dist/*.OBJ/lib/$file $RPM_BUILD_ROOT/%{_libdir}
+done
+
 # Copy the package configuration files
 %{__install} -p -m 644 ./mozilla/dist/pkgconfig/nss-softokn.pc $RPM_BUILD_ROOT/%{_libdir}/pkgconfig/nss-softokn.pc
 %{__install} -p -m 755 ./mozilla/dist/pkgconfig/nss-softokn-config $RPM_BUILD_ROOT/%{_bindir}/nss-softokn-config
@@ -261,6 +301,13 @@ done
 %{_libdir}/libfreebl3.so
 %{_libdir}/libfreebl3.chk
 
+%files freebl-devel
+%defattr(-,root,root)
+%{_libdir}/libfreebl.a
+%{_includedir}/nss3/blapi.h
+%{_includedir}/nss3/blapit.h
+%{_includedir}/nss3/alghmac.h
+
 %files devel
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/nss-softokn.pc
@@ -277,7 +324,6 @@ done
 # the pkcs #11 ones, have been provided by nss-util-devel
 # which installed them before us.
 #
-%{_includedir}/nss3/blapit.h
 %{_includedir}/nss3/ecl-exp.h
 %{_includedir}/nss3/hasht.h
 %{_includedir}/nss3/sechash.h
@@ -286,6 +332,43 @@ done
 %{_includedir}/nss3/shsign.h
 
 %changelog
+* Thu Oct 27 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-11
+- Bug 748524 - On NSS_NoDB_Init don't try to open pkcs11.txt or secmod.db
+
+* Mon Oct 24 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-10
+- Bug 747053 - FIPS changes for NSS, more DRBG tests
+
+* Tue Sep 27 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-9
+- Add relro support for executables and shared libraries
+
+* Mon Jul 25 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-8
+- Include the patch
+
+* Mon Jul 25 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-7
+- Fix the tag
+
+* Fri Jul 22 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-5
+- Add partial RELRO support as a security enhancement
+
+* Thu Jun 23 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-5
+- Retagging to pick up latest patch - Resolves: rhbz#710298
+
+* Thu Jun 23 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-4
+- Resolves: rhbz#710298 - fix intel optimized aes code to handle case where input and ouput are in the same buffer
+
+* Sun Feb 27 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-3
+- Add requires nss-softokn-freebl-devel to devel
+
+* Fri Feb 04 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-2
+- Add headers for nss-softokn-freebl-devel and expand the description
+
+* Mon Jan 17 2011 Elio Maldonado <emaldona@redhat.com> - 3.12.9-1
+- Update to 3.12.9
+- Enable Intel AES Hardware optimizations
+
+* Fri Oct 01 2010 Elio Maldonado <emaldona@redhat.com> - 3.12.8-1
+- Update to 3.12.8
+
 * Thu Aug 26 2010 Elio Maldonado <emaldona@redhat.com> - 3.12.7-1.1
 - Retagging to remove an obsolete file
 
